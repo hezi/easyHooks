@@ -1,0 +1,33 @@
+#!/bin/sh
+base_dir=`pwd`
+exit_code=0
+
+has_hook_script () {
+  [ -f $base_dir/hooks.json ] && cat $base_dir/hooks.json | grep -q "\"$1\"[[:space:]]*:"
+}
+
+run_script () {
+  temp=`cat $base_dir/hooks.json | sed 's/\\\\\//\//g' | sed 's/[{}]//g' | awk -v k="text" '{n=split($0,a,","); for (i=1; i<=n; i++) print a[i]}' | sed 's/\"\:\"/\|/g' | sed 's/[\,]/ /g' | sed 's/\"//g' | grep -w $1`  
+  result=`${temp##*|}`
+  export exit_code=$?
+  echo $result
+}
+
+cd .
+
+has_hook_script base-hook || exit 0
+
+export PATH=$PATH:/usr/local/bin:/usr/local
+
+echo
+echo "👌 easy hooks - running base-hook"
+echo
+
+export GIT_PARAMS="$*"
+run_script base-hook
+
+if [ $exit_code -ne 0 ] ; then
+  echo
+  echo "💥 easy hooks - base-hook hook failed (add --no-verify to bypass)"  
+  exit 1
+fi
